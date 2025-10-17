@@ -2,7 +2,6 @@
 using Microsoft.EntityFrameworkCore;
 using nbpTracker.Common;
 using nbpTracker.Model.Dto;
-using nbpTracker.Model.Entities;
 
 namespace nbpTracker.Services
 {

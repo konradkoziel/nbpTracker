@@ -1,6 +1,5 @@
 ﻿using nbpTracker.Common;
 using nbpTracker.Model.ApiResponses;
-using nbpTracker.Model.Entities;
 using Newtonsoft.Json;
 
 namespace nbpTracker.Services

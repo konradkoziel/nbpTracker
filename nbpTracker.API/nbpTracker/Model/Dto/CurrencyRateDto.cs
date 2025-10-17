@@ -1,8 +1,4 @@
-﻿using nbpTracker.Model.Entities;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-
-namespace nbpTracker.Model.Dto
+﻿namespace nbpTracker.Model.Dto
 {
     public class CurrencyRateDto
     {

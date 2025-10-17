@@ -3,3 +3,5 @@
 ################################################################################
 
 /nbpTracker.API/nbpTracker/currencyrates.db
+/nbpTracker.API/nbpTracker/currencyrates.db-shm
+/nbpTracker.API/nbpTracker/currencyrates.db-wal
