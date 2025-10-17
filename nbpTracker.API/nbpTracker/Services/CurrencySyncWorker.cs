@@ -48,43 +48,56 @@ namespace nbpTracker.Services
             if (exchangeTablesAny)
                 return Result.Fail("Same table exists in database.");
 
-            var existingCurrencies = await context.Currencies.ToListAsync();
-            var existingByCode = existingCurrencies.ToDictionary(c => c.CurrencyCode, c => c, StringComparer.OrdinalIgnoreCase);
 
-            var exchangeTable = new ExchangeTable
+            using var transaction = await context.Database.BeginTransactionAsync();
+            try
             {
-                TableName = nbpTable.Table,
-                No = nbpTable.No,
-                EffectiveDate = nbpTable.EffectiveDate.DateTime,
-                CreatedAt = DateTime.UtcNow,
-                CurrencyRates = new List<CurrencyRate>()
-            };
+                var existingCurrencies = await context.Currencies.ToListAsync();
+                var existingByCode = existingCurrencies.ToDictionary(c => c.CurrencyCode, c => c, StringComparer.OrdinalIgnoreCase);
 
-            foreach (var rate in nbpTable.Rates)
-            {
-                if (!existingByCode.TryGetValue(rate.Code, out var currency))
+                var exchangeTable = new ExchangeTable
                 {
-                    currency = new Currency
+                    TableName = nbpTable.Table,
+                    No = nbpTable.No,
+                    EffectiveDate = nbpTable.EffectiveDate.DateTime,
+                    CreatedAt = DateTime.UtcNow,
+                    CurrencyRates = new List<CurrencyRate>()
+                };
+
+                foreach (var rate in nbpTable.Rates)
+                {
+                    if (!existingByCode.TryGetValue(rate.Code, out var currency))
                     {
-                        CurrencyCode = rate.Code,
-                        CurrencyName = rate.Currency
-                    };
-                    await context.Currencies.AddAsync(currency);
-                    existingByCode[rate.Code] = currency;
+                        currency = new Currency
+                        {
+                            CurrencyCode = rate.Code,
+                            CurrencyName = rate.Currency
+                        };
+                        await context.Currencies.AddAsync(currency);
+                        existingByCode[rate.Code] = currency;
+                    }
+
+                    exchangeTable.CurrencyRates.Add(new CurrencyRate
+                    {
+                        Mid = Convert.ToDecimal(rate.Mid),
+                        CreatedAt = DateTime.UtcNow,
+                        Currency = currency,
+                        ExchangeTable = exchangeTable
+                    });
                 }
 
-                exchangeTable.CurrencyRates.Add(new CurrencyRate
-                {
-                    Mid = Convert.ToDecimal(rate.Mid),
-                    CreatedAt = DateTime.UtcNow,
-                    Currency = currency,
-                    ExchangeTable = exchangeTable
-                });
+                await context.ExchangeTables.AddAsync(exchangeTable);
+                await context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return Result.Ok();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex.Message, ex);
+                return Result.Fail($"Exception occured: {ex.Message}");
             }
 
-            await context.ExchangeTables.AddAsync(exchangeTable);
-            await context.SaveChangesAsync();
-            return Result.Ok();
         }
     }
 }
