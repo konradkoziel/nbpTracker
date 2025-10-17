@@ -22,12 +22,12 @@ namespace nbpTracker.Services
                 .OrderByDescending(t => t.EffectiveDate)
                 .FirstOrDefaultAsync();
 
-            var tableDto = _mapper.Map<ExchangeTableDto>(table);
-
-
             if (table == null) { 
                 return Result<ExchangeTableDto>.Fail("No exchange table found.");
             }
+
+            var tableDto = _mapper.Map<ExchangeTableDto>(table);
+
             return Result<ExchangeTableDto>.Ok(tableDto); 
         }
         

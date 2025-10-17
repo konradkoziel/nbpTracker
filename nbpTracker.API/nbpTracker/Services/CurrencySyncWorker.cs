@@ -19,18 +19,19 @@ namespace nbpTracker.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            int.TryParse(_configuration["Params:TimeSpanDelayInDays"], out var delayDays);
+            var delayDays = 1; // Zabezpieczenie na wypadek gdy parser zawiedzie
+            int.TryParse(_configuration["Params:TimeSpanDelayInDays"], out delayDays);
+            var timer = new PeriodicTimer(TimeSpan.FromDays(delayDays));
 
-            while (!stoppingToken.IsCancellationRequested)
+            while (await timer.WaitForNextTickAsync(stoppingToken))
             {
                 using var scope = _scopeFactory.CreateScope();
                 var fetcher = scope.ServiceProvider.GetRequiredService<ICurrencyRatesFetcher>();
                 var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-                _logger.LogInformation($"Wykonuję cyklicznie co: {TimeSpan.FromDays(delayDays)}", DateTime.Now);
+	            _logger.LogInformation("Wykonuję cyklicznie co: {Delay}", TimeSpan.FromDays(delayDays));
 
                 await SaveTableToDatabase(fetcher, context);
-                await Task.Delay(TimeSpan.FromDays(delayDays), stoppingToken);
             }
         }
 
@@ -38,10 +39,11 @@ namespace nbpTracker.Services
         {
             var result = await fetcher.GetTableAsync();
             var nbpTable = result.Value;
-            var exchangeTablesAny = await context.ExchangeTables.AnyAsync(t => t.No == nbpTable.No);
 
             if (!result.IsSuccess || nbpTable?.Rates == null || nbpTable.Rates.Count == 0)
                 return Result.Fail("Bad response or no data.");
+
+            var exchangeTablesAny = await context.ExchangeTables.AnyAsync(t => t.No == nbpTable.No);
 
             if (exchangeTablesAny)
                 return Result.Fail("Same table exists in database.");
