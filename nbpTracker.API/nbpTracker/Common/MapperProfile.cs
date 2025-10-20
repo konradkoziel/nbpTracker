@@ -11,8 +11,8 @@ namespace nbpTracker.Common
             CreateMap<ExchangeTable, ExchangeTableDto>();
 
             CreateMap<CurrencyRate, CurrencyRateDto>()
-                .ForMember(dest => dest.CurrencyCode, opt => opt.MapFrom(src => src.Currency != null ? src.Currency.CurrencyCode : null))
-                .ForMember(dest => dest.CurrencyName, opt => opt.MapFrom(src => src.Currency != null ? src.Currency.CurrencyName : null));
+                .ForMember(dest => dest.CurrencyCode, opt => opt.MapFrom(src => src.Currency.CurrencyCode))
+                .ForMember(dest => dest.CurrencyName, opt => opt.MapFrom(src => src.Currency.CurrencyName));
 
             CreateMap<Currency, CurrencyRateDto>()
                 .ForMember(dest => dest.CurrencyCode, opt => opt.MapFrom(src => src.CurrencyCode))

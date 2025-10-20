@@ -19,47 +19,68 @@ namespace nbpTracker.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var delayDays = 1; // Zabezpieczenie na wypadek gdy parser zawiedzie
-            int.TryParse(_configuration["Params:TimeSpanDelayInDays"], out delayDays);
-            var timer = new PeriodicTimer(TimeSpan.FromDays(delayDays));
+            var defaultDelayDays = 1;
+            var configured = int.TryParse(_configuration["Params:TimeSpanDelayInDays"], out int delayDays) && delayDays > 0
+                ? delayDays
+                : defaultDelayDays;
 
+            var interval = TimeSpan.FromDays(configured);
+
+            _logger.LogInformation("CurrencySyncWorker started. Interval = {Interval}", interval);
+
+            await RunOnceAsync(stoppingToken);
+
+            using var timer = new PeriodicTimer(interval);
             while (await timer.WaitForNextTickAsync(stoppingToken))
             {
-                using var scope = _scopeFactory.CreateScope();
-                var fetcher = scope.ServiceProvider.GetRequiredService<ICurrencyRatesFetcher>();
-                var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-	            _logger.LogInformation("Wykonuję cyklicznie co: {Delay}", TimeSpan.FromDays(delayDays));
-
-                await SaveTableToDatabase(fetcher, context);
+                await RunOnceAsync(stoppingToken);
             }
         }
 
-        private async Task<Result> SaveTableToDatabase(ICurrencyRatesFetcher fetcher, AppDbContext context)
+        private async Task RunOnceAsync(CancellationToken cancellationToken)
         {
-            var result = await fetcher.GetTableAsync();
+            using var scope = _scopeFactory.CreateScope();
+            var fetcher = scope.ServiceProvider.GetRequiredService<ICurrencyRatesFetcher>();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            _logger.LogInformation("Uruchamiam synchronizację kursów.");
+
+            var result = await SaveTableToDatabase(fetcher, context, cancellationToken);
+
+            if (!result.IsSuccess)
+            {
+                _logger.LogWarning("Synchronizacja zakończona z błędem: {Error}", result.Error);
+            }
+            else
+            {
+                _logger.LogInformation("Synchronizacja zakończona pomyślnie.");
+            }
+        }
+
+        private async Task<Result> SaveTableToDatabase(ICurrencyRatesFetcher fetcher, AppDbContext context, CancellationToken cancellationToken)
+        {
+            var result = await fetcher.GetTableAsync(cancellationToken);
             var nbpTable = result.Value;
 
             if (!result.IsSuccess || nbpTable?.Rates == null || nbpTable.Rates.Count == 0)
                 return Result.Fail("Bad response or no data.");
 
-            var exchangeTablesAny = await context.ExchangeTables.AnyAsync(t => t.No == nbpTable.No);
+            var exchangeTablesAny = await context.ExchangeTables.AnyAsync(t => t.No == nbpTable.No, cancellationToken);
 
             if (exchangeTablesAny)
                 return Result.Fail("Same table exists in database.");
 
-
-            using var transaction = await context.Database.BeginTransactionAsync();
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                var existingCurrencies = await context.Currencies.ToListAsync();
+                var existingCurrencies = await context.Currencies.ToListAsync(cancellationToken);
                 var existingByCode = existingCurrencies.ToDictionary(c => c.CurrencyCode, c => c, StringComparer.OrdinalIgnoreCase);
 
                 var exchangeTable = new ExchangeTable
                 {
                     TableName = nbpTable.Table,
                     No = nbpTable.No,
-                    EffectiveDate = nbpTable.EffectiveDate.DateTime,
+                    EffectiveDate = nbpTable.EffectiveDate.UtcDateTime,
                     CreatedAt = DateTime.UtcNow,
                     CurrencyRates = new List<CurrencyRate>()
                 };
@@ -73,7 +94,7 @@ namespace nbpTracker.Services
                             CurrencyCode = rate.Code,
                             CurrencyName = rate.Currency
                         };
-                        await context.Currencies.AddAsync(currency);
+                        await context.Currencies.AddAsync(currency, cancellationToken);
                         existingByCode[rate.Code] = currency;
                     }
 
@@ -86,19 +107,23 @@ namespace nbpTracker.Services
                     });
                 }
 
-                await context.ExchangeTables.AddAsync(exchangeTable);
-                await context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await context.ExchangeTables.AddAsync(exchangeTable, cancellationToken);
+                await context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
                 return Result.Ok();
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("Operacja zapisu została anulowana.");
+                await transaction.RollbackAsync();
+                return Result.Fail("Operation cancelled.");
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                _logger.LogError(ex.Message, ex);
-                return Result.Fail($"Exception occured: {ex.Message}");
+                _logger.LogError(ex, "Błąd podczas zapisu tabeli kursów do bazy.");
+                return Result.Fail("Exception occured while saving data.");
             }
-
         }
     }
 }
-

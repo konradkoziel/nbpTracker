@@ -3,12 +3,8 @@ using nbpTracker.Model.Entities;
 
 namespace nbpTracker
 {
-    public class AppDbContext : DbContext
+    public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options): base(options)
-        {
-        }
-
         public DbSet<ExchangeTable> ExchangeTables { get; set; }
         public DbSet<Currency> Currencies { get; set; } 
         public DbSet<CurrencyRate> CurrencyRates { get; set; }

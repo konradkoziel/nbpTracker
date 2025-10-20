@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using nbpTracker.Services;
 
 namespace nbpTracker.Controllers
@@ -15,16 +14,16 @@ namespace nbpTracker.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetTable()
+        public async Task<IActionResult> GetTable(CancellationToken token)
         {
-            var result = await _currencyRatesService.GetTableAsync();
+            var result = await _currencyRatesService.GetTableAsync(token);
 
             if (result.IsSuccess)
             {
                 if(result.Value == null) return NotFound("No table found.");
                 return Ok(result.Value);
             }
-            return BadRequest(result.Error);
+            return StatusCode(500, result.Error);
 
         }
     }

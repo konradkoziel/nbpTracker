@@ -16,29 +16,46 @@ namespace nbpTracker.Services
             _configuration = configuration;
             _httpClient = httpClient;
         }
-        public async Task<Result<NbpTable>> GetTableAsync()
+
+        public async Task<Result<NbpTable>> GetTableAsync(CancellationToken cancellationToken = default)
         {
             string? url = _configuration["ApiSettings:NbpUrl"];
-
             if (string.IsNullOrEmpty(url))
             {
-                throw new ArgumentException("URL cannot be empty.", nameof(url));
+                _logger.LogError("ApiSettings:NbpUrl not configured.");
+                return Result<NbpTable>.Fail("API URL not configured.");
             }
+
             try
             {
-                var response = await _httpClient.GetAsync(url);
+                using var response = await _httpClient.GetAsync(url, cancellationToken);
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
 
-                response.EnsureSuccessStatusCode();
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Nieudane żądanie do NBP: {StatusCode}", response.StatusCode);
+                    return Result<NbpTable>.Fail($"Failed to fetch data: {(int)response.StatusCode}");
+                }
 
-                string json = await response.Content.ReadAsStringAsync();
                 var nbpTable = JsonConvert.DeserializeObject<List<NbpTable>>(json)?.FirstOrDefault();
-                return new Result<NbpTable>(true, nbpTable, null);
 
+                if (nbpTable == null)
+                {
+                    _logger.LogWarning("Pobrano poprawny status, ale brak danych JSON w odpowiedzi.");
+                    return Result<NbpTable>.Fail("No data in response.");
+                }
+
+                return Result<NbpTable>.Ok(nbpTable);
             }
-            catch (HttpRequestException ex)
+            catch (OperationCanceledException)
             {
-                _logger.LogError($"Błąd HTTP: {ex.Message}");
-                return new Result<NbpTable>(false, null, $"{ex}");
+                _logger.LogInformation("Pobieranie kursów zostało anulowane.");
+                return Result<NbpTable>.Fail("Operation cancelled.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Błąd podczas pobierania kursów z NBP.");
+                return Result<NbpTable>.Fail("Error while fetching data.");
             }
         }
     }

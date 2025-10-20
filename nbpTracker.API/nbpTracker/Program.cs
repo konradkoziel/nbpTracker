@@ -17,9 +17,11 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddScoped<ICurrencyRatesFetcher, CurrencyRatesFetcher>();
 builder.Services.AddScoped<ICurrencyRatesService, CurrencyRatesService>();
-builder.Services.AddHttpClient<CurrencyRatesFetcher>();
+builder.Services.AddHttpClient<ICurrencyRatesFetcher, CurrencyRatesFetcher>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 
 builder.Services.AddHostedService<CurrencySyncWorker>();
 

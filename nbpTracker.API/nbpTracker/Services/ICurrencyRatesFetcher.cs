@@ -5,6 +5,6 @@ namespace nbpTracker.Services
 {
     public interface ICurrencyRatesFetcher
     {
-        public Task<Result<NbpTable>> GetTableAsync();
+        public Task<Result<NbpTable>> GetTableAsync(CancellationToken cancellationToken);
     }
 }
