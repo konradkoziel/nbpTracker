@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using nbpTracker;
 using nbpTracker.Common;
@@ -30,11 +30,24 @@ builder.Services.AddAutoMapper(cfg => { }, typeof(MapperProfile));
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=currencyrates.db"));
 
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowLocalhost", policy =>
+    {
+        policy
+            .SetIsOriginAllowed(origin => new Uri(origin).Host == "localhost")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    app.UseCors("AllowLocalhost");
     app.UseSwagger();
     app.UseSwaggerUI();
 }
