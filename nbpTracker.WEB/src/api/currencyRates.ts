@@ -1,5 +1,5 @@
 import type { ExchangeTable } from "../types/exchangeTable";
-export const API_URL: string = "https://localhost:7020/api/CurrencyRates";
+export const API_URL: string = import.meta.env.VITE_API_URL;
 
 export async function fetchCurrencyRates(): Promise<ExchangeTable> {
   const res = await fetch(API_URL);
