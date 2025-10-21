@@ -14,7 +14,7 @@
 - BackgroundService
 
 
-🛠️ Prerequisites
+## 🛠️ Prerequisites
 Make sure you have the following installed:
 
 .NET SDK 8.0+
