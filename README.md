@@ -21,35 +21,34 @@ Make sure you have the following installed:
 
 Node.js 18+
 
-npm or yarn
-
 ## ⚙️ API Setup
 Navigate to the API project folder:
 
+```bash
 cd ./API
+```
 Add the initial migration:
-
+```bash
 dotnet ef migrations add InitialCreate
+```
 Apply the migration to the database:
-
+```bash
 dotnet ef database update
+```
 Run the API:
-
+```bash
 dotnet run
+```
+## ⚙️ WEB Setup
 
-## WEB Setup
-Navigate to the WEB project folder:
-
-cd ./WEB
-Open the .env file and update the API URL:
-
-env
-VITE_API_URL=http://localhost:5000
-Replace http://localhost:5000 with the actual URL where your API is running.
+Replace VITE_API_URL in .env file with the actual URL where your API is running.
 
 Install dependencies:
-
+```bash
 npm install
+```
 Start the development server:
 
+```bash
 npm run dev
+```
