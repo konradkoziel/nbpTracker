@@ -7,6 +7,7 @@
 ## 📦 Technologies Used
 
 - ASP.NET Core 8 (Web API)
+- REACT
 - Entity Framework Core
 - SQLite
 - AutoMapper
