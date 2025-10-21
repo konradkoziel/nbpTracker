@@ -23,7 +23,7 @@ Node.js 18+
 
 npm or yarn
 
-⚙️ API Setup
+## ⚙️ API Setup
 Navigate to the API project folder:
 
 cd ./API
@@ -37,7 +37,7 @@ Run the API:
 
 dotnet run
 
-WEB Setup
+## WEB Setup
 Navigate to the WEB project folder:
 
 cd ./WEB
